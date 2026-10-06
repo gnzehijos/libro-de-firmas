@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Libro de Firmas Realtime</title>
+    <title>Libro de Firmas Virtual</title>
     <style>
         :root {
             --primary: #d4af37;
@@ -124,25 +124,25 @@
     </div>
 </div>
 
-    <!-- Carga de Supabase moderna mediante Módulo de JavaScript -->
-<script type="module">
-    import { createClient } from 'https://jsdelivr.net'
+<!-- Servidor alternativo ultra-estable (cdnjs) para evitar bloqueos de red -->
+<script src="https://cloudflare.com"></script>
 
-    // ⚠️ REEMPLAZA ESTO CON TUS DATOS DE SUPABASE
-    const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co/rest/v1/";
+<script>
+    // ⚠️ CONFIGURACIÓN DE TU BASE DE DATO
+    const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9mamVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
 
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Inicializar conexión con Supabase
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const form = document.getElementById('firmaForm');
     const lista = document.getElementById('firmasLista');
     const btnEnviar = document.getElementById('btnEnviar');
 
-    // Cargar y escuchar firmas al iniciar
+    // Cargar mensajes existentes y escuchar nuevos en tiempo real
     document.addEventListener('DOMContentLoaded', () => {
         cargarFirmas();
         
-        // Escuchar cambios en tiempo real
         supabaseClient
             .channel('public:firmas')
             .on('postgres_changes', { event: 'INSERT', filter: 'table=eq.firmas' }, payload => {
@@ -155,11 +155,11 @@
         const { data, error } = await supabaseClient
             .from('firmas')
             .select('*')
-            .order('id', { ascending: false }); // Usamos 'id' en lugar de created_at por seguridad
+            .order('id', { ascending: false });
 
         if (error) {
             console.error(error);
-            lista.innerHTML = '<h2>Mensajes de los invitados</h2><p>Error al cargar los mensajes.</p>';
+            lista.innerHTML = '<h2>Mensajes de los invitados</h2><p>Error al conectar con la base de datos.</p>';
             return;
         }
 
@@ -218,7 +218,7 @@
 
         if (error) {
             console.error(error);
-            alert("Hubo un problema al publicar tu firma. Verifica que el RLS esté apagado en Supabase.");
+            alert("Hubo un problema al publicar tu firma. Verifica las políticas RLS en Supabase.");
         } else {
             form.reset();
         }
@@ -245,4 +245,5 @@
 
 </body>
 </html>
+
 
