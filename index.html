@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Libro de Firmas Digital</title>
+    <title>Libro de Firmas Realtime</title>
     <style>
         :root {
             --primary: #d4af37;
@@ -89,10 +89,11 @@
         }
         .firma-img {
             max-width: 100%;
-            max-height: 250px;
+            max-height: 300px;
             border-radius: 8px;
             object-fit: cover;
             display: block;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -111,83 +112,129 @@
             <textarea id="mensaje" required placeholder="¡Felicidades en tu día!..."></textarea>
         </div>
         <div class="form-group">
-            <label for="foto">Sube una Foto (Opcional):</label>
+            <label for="foto">Sube una Foto:</label>
             <input type="file" id="foto" accept="image/*">
         </div>
-        <button type="submit">Publicar Firma</button>
+        <button type="submit" id="btnEnviar">Publicar Firma</button>
     </form>
 
     <div class="firmas-container" id="firmasLista">
         <h2>Mensajes de los invitados</h2>
-        <!-- Aquí se cargarán las firmas -->
+        <div id="cargando">Cargando mensajes...</div>
     </div>
 </div>
 
+<!-- Librería de Supabase -->
+<script src="https://jsdelivr.net"></script>
 <script>
+    // ⚠️ REEMPLAZA ESTO CON TUS DATOS DE SUPABASE (Paso 1.9)
+    const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9mamVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const form = document.getElementById('firmaForm');
     const lista = document.getElementById('firmasLista');
+    const btnEnviar = document.getElementById('btnEnviar');
 
-    // Cargar firmas guardadas al iniciar
-    document.addEventListener('DOMContentLoaded', mostrarFirmas);
+    // Cargar y escuchar firmas al iniciar
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarFirmas();
+        
+        // Escuchar cambios en tiempo real
+        supabaseClient
+            .channel('public:firmas')
+            .on('postgres_changes', { event: 'INSERT', filter: 'table=eq.firmas' }, payload => {
+                insertarFirmaEnPantalla(payload.new);
+            })
+            .subscribe();
+    });
 
-    form.addEventListener('submit', function(e) {
+    async function cargarFirmas() {
+        const { data, error } = await supabaseClient
+            .from('firmas')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            lista.innerHTML = '<h2>Mensajes de los invitados</h2><p>Error al cargar los mensajes.</p>';
+            return;
+        }
+
+        lista.innerHTML = '<h2>Mensajes de los invitados</h2>';
+        if (data.length === 0) {
+            lista.innerHTML += '<p id="sin-firmas" style="color: #7f8c8d;">Aún no hay firmas. ¡Sé el primero!</p>';
+            return;
+        }
+
+        data.forEach(firma => insertarFirmaEnPantalla(firma, false));
+    }
+
+    function insertarFirmaEnPantalla(firma, alPrincipio = true) {
+        const sinFirmasTxt = document.getElementById('sin-firmas');
+        if (sinFirmasTxt) sinFirmasTxt.remove();
+
+        const card = document.createElement('div');
+        card.className = 'firma-card';
+        
+        let fotoHtml = '';
+        if (firma.foto) {
+            fotoHtml = `<img src="${firma.foto}" class="firma-img" alt="Foto de ${firma.nombre}">`;
+        }
+
+        card.innerHTML = `
+            <h3>${escapeHTML(firma.nombre)}</h3>
+            <p>${escapeHTML(firma.mensaje).replace(/\n/g, '<br>')}</p>
+            ${fotoHtml}
+        `;
+        
+        if (alPrincipio) {
+            lista.insertBefore(card, lista.querySelector('.firma-card'));
+        } else {
+            lista.appendChild(card);
+        }
+    }
+
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        btnEnviar.disabled = true;
+        btnEnviar.innerText = "Publicando...";
         
         const nombre = document.getElementById('nombre').value;
         const mensaje = document.getElementById('mensaje').value;
         const fotoInput = document.getElementById('foto');
         
+        let fotoBase64 = null;
+
         if (fotoInput.files && fotoInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fotoBase64 = e.target.result;
-                guardarFirma(nombre, mensaje, fotoBase64);
-            }
-            reader.readAsDataURL(fotoInput.files[0]);
-        } else {
-            guardarFirma(nombre, mensaje, null);
+            fotoBase64 = await convertToBase64(fotoInput.files[0]);
         }
+
+        const { error } = await supabaseClient
+            .from('firmas')
+            .insert([{ nombre, mensaje, foto: fotoBase64 }]);
+
+        if (error) {
+            console.error(error);
+            alert("Hubo un problema al publicar tu firma.");
+        } else {
+            form.reset();
+        }
+
+        btnEnviar.disabled = false;
+        btnEnviar.innerText = "Publicar Firma";
     });
 
-    function guardarFirma(nombre, mensaje, foto) {
-        const nuevaFirma = { nombre, mensaje, foto };
-        let firmas = JSON.parse(localStorage.getItem('firmas')) || [];
-        firmas.unshift(nuevaFirma); // Agrega al inicio para ver lo más nuevo primero
-        localStorage.setItem('firmas', JSON.stringify(firmas));
-        
-        form.reset();
-        mostrarFirmas();
-    }
-
-    function mostrarFirmas() {
-        // Limpiar lista excepto el título h2
-        lista.innerHTML = '<h2>Mensajes de los invitados</h2>';
-        const firmas = JSON.parse(localStorage.getItem('firmas')) || [];
-        
-        if (firmas.length === 0) {
-            lista.innerHTML += '<p style="color: #7f8c8d;">Aún no hay firmas. ¡Sé el primero!</p>';
-            return;
-        }
-
-        firmas.forEach(firma => {
-            const card = document.createElement('div');
-            card.className = 'firma-card';
-            
-            let fotoHtml = '';
-            if (firma.foto) {
-                fotoHtml = `<img src="${firma.foto}" class="firma-img" alt="Foto de ${firma.nombre}">`;
-            }
-
-            card.innerHTML = `
-                <h3>${escapeHTML(firma.nombre)}</h3>
-                <p>${escapeHTML(firma.mensaje).replace(/\n/g, '<br>')}</p>
-                ${fotoHtml}
-            `;
-            lista.appendChild(card);
+    function convertToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
         });
     }
 
-    // Seguridad básica para evitar inyección de código malo
     function escapeHTML(str) {
         return str.replace(/[&<>'"]/g, 
             tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
