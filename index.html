@@ -6,14 +6,16 @@
     <title>Libro de Firmas Virtual</title>
     <style>
         :root {
-            --primary: #d4af37;
-            --dark: #2c3e50;
-            --light: #f9f9f9;
+            --primary: #d4af37; /* Dorado */
+            --dark: #111111;    /* Negro Fondo */
+            --light: #1a1a1a;   /* Tarjetas */
+            --text-color: #ffffff;
+            --input-bg: #252525;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f6f7;
-            color: var(--dark);
+            background-color: var(--dark);
+            color: var(--text-color);
             margin: 0;
             padding: 20px;
             display: flex;
@@ -23,16 +25,19 @@
         .container {
             max-width: 600px;
             width: 100%;
-            background: white;
+            background: #161616;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 25px rgba(0,0,0,0.6);
+            border: 1px solid rgba(212, 175, 55, 0.25);
             box-sizing: border-box;
         }
         h1 {
             text-align: center;
-            color: var(--dark);
+            color: var(--primary);
             margin-bottom: 25px;
+            font-family: 'Georgia', serif;
+            letter-spacing: 2px;
         }
         .form-group {
             margin-bottom: 15px;
@@ -41,13 +46,33 @@
             display: block;
             margin-bottom: 5px;
             font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 0.5px;
         }
-        input[type="text"], textarea, input[type="file"] {
+        input[type="text"], textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 12px;
+            background-color: var(--input-bg);
+            border: 1px solid #333;
             border-radius: 8px;
             box-sizing: border-box;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--input-bg);
+            border: 1px dashed #444;
+            border-radius: 8px;
+            box-sizing: border-box;
+            color: #aaa;
+            cursor: pointer;
         }
         textarea {
             resize: vertical;
@@ -55,45 +80,68 @@
         }
         button {
             width: 100%;
-            background-color: var(--dark);
-            color: white;
+            background-color: var(--primary);
+            color: var(--dark);
             border: none;
-            padding: 12px;
+            padding: 14px;
             font-size: 16px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background 0.3s, transform 0.2s;
         }
         button:hover {
-            background-color: #1a252f;
+            background-color: #bfa030;
+            transform: translateY(-1px);
+        }
+        button:disabled {
+            background-color: #555;
+            color: #888;
+            cursor: not-allowed;
         }
         .firmas-container {
             margin-top: 30px;
         }
+        .firmas-container h2 {
+            color: var(--primary);
+            font-family: 'Georgia', serif;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 10px;
+            letter-spacing: 1px;
+        }
         .firma-card {
             background: var(--light);
             border-left: 5px solid var(--primary);
-            padding: 15px;
+            padding: 20px;
             margin-bottom: 15px;
             border-radius: 0 8px 8px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 255, 255, 0.02);
         }
         .firma-card h3 {
             margin: 0 0 8px 0;
-            color: var(--dark);
+            color: var(--primary);
+            font-size: 1.15rem;
         }
         .firma-card p {
             margin: 0 0 12px 0;
-            line-height: 1.4;
+            line-height: 1.5;
+            color: #e0e0e0;
         }
         .firma-img {
             max-width: 100%;
-            max-height: 300px;
+            max-height: 350px;
             border-radius: 8px;
             object-fit: cover;
             display: block;
-            margin-top: 10px;
+            margin-top: 12px;
+            border: 1px solid rgba(212, 175, 55, 0.15);
+        }
+        #cargando {
+            color: #888;
+            font-style: italic;
         }
     </style>
 </head>
@@ -127,7 +175,7 @@
 <script>
     // Configuración directa y segura
     const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9mamVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9famVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
 
     const form = document.getElementById('firmaForm');
     const lista = document.getElementById('firmasLista');
@@ -240,4 +288,5 @@
 
 </body>
 </html>
+
 
