@@ -124,14 +124,15 @@
     </div>
 </div>
 
-<!-- Librería de Supabase -->
-<script src="https://unpkg.com"></script>
-<script>
-    // ⚠️ REEMPLAZA ESTO CON TUS DATOS DE SUPABASE (Paso 1.9)
+    <!-- Carga de Supabase moderna mediante Módulo de JavaScript -->
+<script type="module">
+    import { createClient } from 'https://jsdelivr.net'
+
+    // ⚠️ REEMPLAZA ESTO CON TUS DATOS DE SUPABASE
     const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co/rest/v1/";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9mamVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
 
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const form = document.getElementById('firmaForm');
     const lista = document.getElementById('firmasLista');
@@ -154,7 +155,7 @@
         const { data, error } = await supabaseClient
             .from('firmas')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('id', { ascending: false }); // Usamos 'id' en lugar de created_at por seguridad
 
         if (error) {
             console.error(error);
@@ -163,7 +164,7 @@
         }
 
         lista.innerHTML = '<h2>Mensajes de los invitados</h2>';
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
             lista.innerHTML += '<p id="sin-firmas" style="color: #7f8c8d;">Aún no hay firmas. ¡Sé el primero!</p>';
             return;
         }
@@ -217,7 +218,7 @@
 
         if (error) {
             console.error(error);
-            alert("Hubo un problema al publicar tu firma.");
+            alert("Hubo un problema al publicar tu firma. Verifica que el RLS esté apagado en Supabase.");
         } else {
             form.reset();
         }
@@ -244,3 +245,4 @@
 
 </body>
 </html>
+
