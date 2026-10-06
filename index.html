@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libro de Firmas Digital</title>
+    <style>
+        :root {
+            --primary: #d4af37;
+            --dark: #2c3e50;
+            --light: #f9f9f9;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f7;
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: var(--dark);
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input[type="text"], textarea, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+        button {
+            width: 100%;
+            background-color: var(--dark);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #1a252f;
+        }
+        .firmas-container {
+            margin-top: 30px;
+        }
+        .firma-card {
+            background: var(--light);
+            border-left: 5px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .firma-card h3 {
+            margin: 0 0 8px 0;
+            color: var(--dark);
+        }
+        .firma-card p {
+            margin: 0 0 12px 0;
+            line-height: 1.4;
+        }
+        .firma-img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            object-fit: cover;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✒️ Libro de Firmas</h1>
+    
+    <form id="firmaForm">
+        <div class="form-group">
+            <label for="nombre">Tu Nombre:</label>
+            <input type="text" id="nombre" required placeholder="Ej. María García">
+        </div>
+        <div class="form-group">
+            <label for="mensaje">Tu Mensaje o Dedicatoria:</label>
+            <textarea id="mensaje" required placeholder="¡Felicidades en tu día!..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="foto">Sube una Foto (Opcional):</label>
+            <input type="file" id="foto" accept="image/*">
+        </div>
+        <button type="submit">Publicar Firma</button>
+    </form>
+
+    <div class="firmas-container" id="firmasLista">
+        <h2>Mensajes de los invitados</h2>
+        <!-- Aquí se cargarán las firmas -->
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('firmaForm');
+    const lista = document.getElementById('firmasLista');
+
+    // Cargar firmas guardadas al iniciar
+    document.addEventListener('DOMContentLoaded', mostrarFirmas);
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const nombre = document.getElementById('nombre').value;
+        const mensaje = document.getElementById('mensaje').value;
+        const fotoInput = document.getElementById('foto');
+        
+        if (fotoInput.files && fotoInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fotoBase64 = e.target.result;
+                guardarFirma(nombre, mensaje, fotoBase64);
+            }
+            reader.readAsDataURL(fotoInput.files[0]);
+        } else {
+            guardarFirma(nombre, mensaje, null);
+        }
+    });
+
+    function guardarFirma(nombre, mensaje, foto) {
+        const nuevaFirma = { nombre, mensaje, foto };
+        let firmas = JSON.parse(localStorage.getItem('firmas')) || [];
+        firmas.unshift(nuevaFirma); // Agrega al inicio para ver lo más nuevo primero
+        localStorage.setItem('firmas', JSON.stringify(firmas));
+        
+        form.reset();
+        mostrarFirmas();
+    }
+
+    function mostrarFirmas() {
+        // Limpiar lista excepto el título h2
+        lista.innerHTML = '<h2>Mensajes de los invitados</h2>';
+        const firmas = JSON.parse(localStorage.getItem('firmas')) || [];
+        
+        if (firmas.length === 0) {
+            lista.innerHTML += '<p style="color: #7f8c8d;">Aún no hay firmas. ¡Sé el primero!</p>';
+            return;
+        }
+
+        firmas.forEach(firma => {
+            const card = document.createElement('div');
+            card.className = 'firma-card';
+            
+            let fotoHtml = '';
+            if (firma.foto) {
+                fotoHtml = `<img src="${firma.foto}" class="firma-img" alt="Foto de ${firma.nombre}">`;
+            }
+
+            card.innerHTML = `
+                <h3>${escapeHTML(firma.nombre)}</h3>
+                <p>${escapeHTML(firma.mensaje).replace(/\n/g, '<br>')}</p>
+                ${fotoHtml}
+            `;
+            lista.appendChild(card);
+        });
+    }
+
+    // Seguridad básica para evitar inyección de código malo
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+    }
+</script>
+
+</body>
+</html>
