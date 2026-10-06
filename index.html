@@ -173,7 +173,6 @@
 </div>
 
 <script>
-    // Configuración directa y segura
     const SUPABASE_URL = "https://mzyhztofjecwsodvxgjz.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16eWh6dG9famVjd3NvZHZ4Z2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyOTM5MTAsImV4cCI6MjEwNjg2OTkxMH0.tA-yKcZEsFc4Dc7lqtUHHKMIMtfS9nR9lKdTN5WweVM";
 
@@ -181,10 +180,8 @@
     const lista = document.getElementById('firmasLista');
     const btnEnviar = document.getElementById('btnEnviar');
 
-    // Conexión nativa mediante FETCH (Evita usar la librería externa que se bloqueaba)
     document.addEventListener('DOMContentLoaded', () => {
         cargarFirmas();
-        // Recargar las firmas automáticamente cada 10 segundos por si alguien más escribe
         setInterval(cargarFirmas, 10000);
     });
 
@@ -199,7 +196,7 @@
                 }
             });
 
-            if (!response.ok) throw new Error('Error en la base de datos');
+            if (!response.ok) throw new Error('Error');
             const data = await response.json();
 
             lista.innerHTML = '<h2>Mensajes de los invitados</h2>';
@@ -211,11 +208,7 @@
             data.forEach(firma => {
                 const card = document.createElement('div');
                 card.className = 'firma-card';
-                
-                let fotoHtml = '';
-                if (firma.foto) {
-                    fotoHtml = `<img src="${firma.foto}" class="firma-img" alt="Foto de ${firma.nombre}">`;
-                }
+                let fotoHtml = firma.foto ? `<img src="${firma.foto}" class="firma-img" alt="Foto">` : '';
 
                 card.innerHTML = `
                     <h3>${escapeHTML(firma.nombre)}</h3>
@@ -242,7 +235,21 @@
         let fotoBase64 = null;
 
         if (fotoInput.files && fotoInput.files[0]) {
-            fotoBase64 = await convertToBase64(fotoInput.files[0]);
+            const file = fotoInput.files[0];
+            const reader = new FileReader();
+            
+            fotoBase64 = await new Promise((resolve) => {
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+            });
+
+            // Si la foto es gigante, se frena para evitar el error del servidor
+            if (fotoBase64.length > 2000000) {
+                alert("La foto es demasiado pesada. Por favor, sube una foto de menor resolución o sin tanta calidad.");
+                btnEnviar.disabled = false;
+                btnEnviar.innerText = "Publicar Firma";
+                return;
+            }
         }
 
         try {
@@ -257,36 +264,24 @@
                 body: JSON.stringify({ nombre, mensaje, foto: fotoBase64 })
             });
 
-            if (!response.ok) throw new Error('No se pudo guardar la firma');
-            
+            if (!response.ok) throw new Error('Error');
             form.reset();
             cargarFirmas();
         } catch (error) {
             console.error(error);
-            alert("Hubo un problema al publicar tu firma. Verifica que el RLS esté desactivado en Supabase.");
+            alert("Hubo un problema al publicar. Verifica que los datos estén bien.");
         } finally {
             btnEnviar.disabled = false;
             btnEnviar.innerText = "Publicar Firma";
         }
     });
 
-    function convertToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-    }
-
     function escapeHTML(str) {
-        return str.replace(/[&<>'"]/g, 
-            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-        );
+        return str.replace(/[&<>'"]/g, function(tag) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag;
+        });
     }
 </script>
 
 </body>
 </html>
-
-
